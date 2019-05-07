@@ -96,6 +96,15 @@ class WhooshIndex:
     def _close_indicies(self):
         self.backend.storage.close()
 
+    def _writer_args(self):
+        args = {
+            'limitmb': self.backend.memory,
+            'procs': self.backend.processors,
+        }
+        if self.rebuilding:
+            args.update({'multisegment': True})
+        return args
+
     def add_model(self, model):
         # Adding done on initialisation
         self._close_indicies()
@@ -147,7 +156,7 @@ class WhooshIndex:
         for model in self.models:
             doc = self._create_document(model, item)
             index = self.indicies[model._meta.label]
-            writer = AsyncWriter(index)
+            writer = AsyncWriter(index, writerargs=self._writer_args())
             writer.update_document(**doc)
             writer.commit()
         self._close_indicies()
@@ -155,10 +164,7 @@ class WhooshIndex:
     def add_items(self, model, items):
         for add_model in self.models:
             index = self.indicies[add_model._meta.label]
-            if self.rebuilding:
-                writer = AsyncWriter(index, writerargs={'multisegment': True})
-            else:
-                writer = AsyncWriter(index)
+            writer = AsyncWriter(index, writerargs=self._writer_args())
             for item in items:
                 doc = self._create_document(add_model, item)
                 writer.update_document(**doc)
@@ -438,6 +444,8 @@ class WhooshSearchBackend(BaseSearchBackend):
 
         self.use_file_storage = True
         self.path = params.get("PATH")
+        self.processors = params.get("PROCS", 1)
+        self.memory = params.get("MEMORY", 128)
         # Flag for rebuilder, we only want the index folder emptied by the
         # first WhooshSearchRebuilder ran
         self.destroy_index = True
