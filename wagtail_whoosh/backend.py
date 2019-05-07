@@ -79,6 +79,7 @@ class WhooshIndex:
             db_alias = DEFAULT_DB_ALIAS
         self.db_alias = db_alias
         self.name = model._meta.label
+        self.rebuilding = False
         self.indicies = dict(self._open_indicies())
 
     def _open_indicies(self):
@@ -154,7 +155,10 @@ class WhooshIndex:
     def add_items(self, model, items):
         for add_model in self.models:
             index = self.indicies[add_model._meta.label]
-            writer = AsyncWriter(index)
+            if self.rebuilding:
+                writer = AsyncWriter(index, writerargs={'multisegment': True})
+            else:
+                writer = AsyncWriter(index)
             for item in items:
                 doc = self._create_document(add_model, item)
                 writer.update_document(**doc)
@@ -405,6 +409,7 @@ class WhooshSearchResults(BaseSearchResults):
 class WhooshSearchRebuilder:
     def __init__(self, index):
         self.index = index
+        self.index.rebuilding = True
 
     def start(self):
         if self.index.backend.destroy_index:
