@@ -44,7 +44,7 @@ class ModelSchema:
     def build_schema(self):
         search_fields = dict(self._define_search_fields())
         schema_fields = {
-            PK: WHOOSH_ID(stored=True, unique=True),
+            PK: WHOOSH_ID(unique=True),
         }
         schema_fields.update(search_fields)
         return Schema(**schema_fields)
@@ -52,7 +52,7 @@ class ModelSchema:
     def _define_search_fields(self):
         def _to_whoosh_field(field, field_name=None):
             if isinstance(field, AutocompleteField) or (hasattr(field, 'partial_match') and field.partial_match):
-                whoosh_field = NGRAMWORDS(stored=True, minsize=2, maxsize=8, queryor=True)
+                whoosh_field = NGRAMWORDS(minsize=2, maxsize=4, queryor=True)
             else:
                 # TODO other types of fields https://whoosh.readthedocs.io/en/latest/api/fields.htm
                 whoosh_field = TEXT(phrase=True, stored=True, field_boost=get_boost(field))
